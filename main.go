@@ -24,6 +24,7 @@ func main() {
 	//}
 
 	numGoroutines := flag.Int("goroutines", 1, "Number of goroutines")
+	numBlocks := flag.Int("blocks", 1, "Number of blocks")
 	flag.Parse()
 
 	items, err := readItemsFromFile("data.json")
@@ -32,9 +33,63 @@ func main() {
 		return
 	}
 
-	totalSum := calculateSum(items, *numGoroutines)
+	totalSum := calculateSum(items, *numGoroutines, *numBlocks)
 
 	fmt.Println("Общая сумма всех чисел:", totalSum)
+}
+
+func calculateSum(items []Item, numGoroutines int, numBlocks int) int {
+	blockSize := len(items) / numBlocks
+	results := make(chan int, numBlocks)
+	var wg sync.WaitGroup
+
+	blocks := make(chan []Item, numBlocks)
+	for i := 0; i < numBlocks; i++ {
+		start := i * blockSize
+		end := start + blockSize
+		if i == numBlocks-1 {
+			end = len(items)
+		}
+		blocks <- items[start:end]
+	}
+
+	startTime := time.Now()
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go worker(blocks, &wg, results)
+	}
+
+	close(blocks)
+	wg.Wait()
+	close(results)
+
+	totalSum := 0
+	for sum := range results {
+		totalSum += sum
+	}
+
+	// Замерим память
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	fmt.Printf("Использовано памяти (в байтах): %d\n", mem.Alloc)
+
+	// Время выполнения
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
+	fmt.Printf("Время выполнения: %v\n", duration)
+
+	return totalSum
+}
+
+func worker(blocks <-chan []Item, wg *sync.WaitGroup, results chan<- int) {
+	defer wg.Done()
+	for block := range blocks {
+		sum := 0
+		for _, item := range block {
+			sum += item.A + item.B
+		}
+		results <- sum
+	}
 }
 
 func readItemsFromFile(fileName string) ([]Item, error) {
@@ -56,43 +111,6 @@ func readItemsFromFile(fileName string) ([]Item, error) {
 	}
 
 	return items, nil
-}
-
-func calculateSum(items []Item, numGoroutines int) int {
-	blockSize := len(items) / numGoroutines
-	results := make(chan int, numGoroutines)
-	var wg sync.WaitGroup
-
-	startTime := time.Now()
-	for i := 0; i < numGoroutines; i++ {
-		start := i * blockSize
-		end := start + blockSize
-		if i == numGoroutines-1 {
-			end = len(items)
-		}
-		wg.Add(1)
-		go sumBlockItems(items[start:end], &wg, results)
-	}
-
-	wg.Wait()
-	close(results)
-
-	totalSum := 0
-	for sum := range results {
-		totalSum += sum
-	}
-
-	// Замерим память
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	fmt.Printf("Использовано памяти (в байтах): %d\n", mem.Alloc)
-
-	// Время выполнения
-	endTime := time.Now()
-	duration := endTime.Sub(startTime)
-	fmt.Printf("Время выполнения: %v\n", duration)
-
-	return totalSum
 }
 
 func sumBlockItems(block []Item, wg *sync.WaitGroup, results chan<- int) {

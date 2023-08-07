@@ -56,7 +56,7 @@ func TestCalculateSum(t *testing.T) {
 	}
 
 	// Вызываем функцию для вычисления суммы
-	actualSum := calculateSum(testData, 1)
+	actualSum := calculateSum(testData, 1, 10)
 
 	// Проверяем, что результат соответствует ожиданиям
 	if actualSum != expectedSum {
@@ -80,7 +80,7 @@ func TestCalculateSumWithMultipleGoroutines(t *testing.T) {
 	// Попробуем разное количество горутин
 	for numGoroutines := 1; numGoroutines <= 10; numGoroutines++ {
 		// Вызываем функцию для вычисления суммы с разным количеством горутин
-		actualSum := calculateSum(testData, numGoroutines)
+		actualSum := calculateSum(testData, numGoroutines, 10)
 
 		// Проверяем, что результат соответствует ожиданиям
 		if actualSum != expectedSum {
@@ -95,7 +95,7 @@ func TestCalculateSumWithEmptyData(t *testing.T) {
 	testData := []Item{}
 
 	// Вызываем функцию для вычисления суммы
-	actualSum := calculateSum(testData, 5)
+	actualSum := calculateSum(testData, 5, 10)
 
 	// Проверяем, что результат равен 0, так как данных нет
 	if actualSum != 0 {
