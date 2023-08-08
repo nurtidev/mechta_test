@@ -7,7 +7,7 @@
 1. Запуск:
 
    ```bash
-   go run main.go -goroutines 4
+   go run main.go -goroutines 4 -blocks 10
 
 2. Тестирование:
 

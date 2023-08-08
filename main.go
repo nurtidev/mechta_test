@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"runtime"
 	"sync"
@@ -18,6 +19,9 @@ type Item struct {
 }
 
 func main() {
+	//if err := changeData(); err != nil {
+	//	log.Fatal(err)
+	//}
 	numGoroutines := flag.Int("goroutines", 4, "Number of goroutines")
 	numBlocks := flag.Int("blocks", 10, "Number of blocks")
 	flag.Parse()
@@ -111,4 +115,34 @@ func readItemsFromFile(fileName string) ([]Item, error) {
 	}
 
 	return items, nil
+}
+
+func changeData() error {
+	rand.Seed(time.Now().UnixNano())
+
+	items := make([]Item, 1000000)
+	for i := 0; i < len(items); i++ {
+		items[i] = Item{
+			A: rand.Intn(19) - 9,
+			B: rand.Intn(19) - 9,
+		}
+	}
+
+	file, err := os.Create("data.json")
+	if err != nil {
+		fmt.Println("Ошибка при создании файла:", err)
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(items)
+	if err != nil {
+		fmt.Println("Ошибка при записи в файл:", err)
+		return err
+	}
+
+	fmt.Println("Данные успешно записаны в файл data.json")
+	return nil
 }
