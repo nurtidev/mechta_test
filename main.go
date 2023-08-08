@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"runtime"
 	"sync"
@@ -19,13 +18,14 @@ type Item struct {
 }
 
 func main() {
-	//if err := changeData(); err != nil {
-	//	log.Fatal(err)
-	//}
-
-	numGoroutines := flag.Int("goroutines", 1, "Number of goroutines")
-	numBlocks := flag.Int("blocks", 1, "Number of blocks")
+	numGoroutines := flag.Int("goroutines", 4, "Number of goroutines")
+	numBlocks := flag.Int("blocks", 10, "Number of blocks")
 	flag.Parse()
+
+	if *numGoroutines <= 0 || *numBlocks <= 0 {
+		log.Fatal("Number of goroutines and blocks must be greater than 0")
+		return
+	}
 
 	items, err := readItemsFromFile("data.json")
 	if err != nil {
@@ -41,17 +41,18 @@ func main() {
 func calculateSum(items []Item, numGoroutines int, numBlocks int) int {
 	blockSize := len(items) / numBlocks
 	results := make(chan int, numBlocks)
+	blocks := make(chan []Item, numBlocks)
 	var wg sync.WaitGroup
 
-	blocks := make(chan []Item, numBlocks)
 	for i := 0; i < numBlocks; i++ {
 		start := i * blockSize
 		end := start + blockSize
-		if i == numBlocks-1 {
+		if i == numBlocks-1 && len(items)%numBlocks != 0 {
 			end = len(items)
 		}
 		blocks <- items[start:end]
 	}
+	close(blocks)
 
 	startTime := time.Now()
 	for i := 0; i < numGoroutines; i++ {
@@ -59,7 +60,6 @@ func calculateSum(items []Item, numGoroutines int, numBlocks int) int {
 		go worker(blocks, &wg, results)
 	}
 
-	close(blocks)
 	wg.Wait()
 	close(results)
 
@@ -111,45 +111,4 @@ func readItemsFromFile(fileName string) ([]Item, error) {
 	}
 
 	return items, nil
-}
-
-func sumBlockItems(block []Item, wg *sync.WaitGroup, results chan<- int) {
-	defer wg.Done()
-
-	sum := 0
-	for _, item := range block {
-		sum += item.A + item.B
-	}
-
-	results <- sum
-}
-
-func changeData() error {
-	rand.Seed(time.Now().UnixNano())
-
-	items := make([]Item, 1000000)
-	for i := 0; i < len(items); i++ {
-		items[i] = Item{
-			A: rand.Intn(19) - 9,
-			B: rand.Intn(19) - 9,
-		}
-	}
-
-	file, err := os.Create("data.json")
-	if err != nil {
-		fmt.Println("Ошибка при создании файла:", err)
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	err = encoder.Encode(items)
-	if err != nil {
-		fmt.Println("Ошибка при записи в файл:", err)
-		return err
-	}
-
-	fmt.Println("Данные успешно записаны в файл data.json")
-	return nil
 }
