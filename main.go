@@ -38,7 +38,6 @@ func main() {
 	}
 
 	totalSum := calculateSum(items, *numGoroutines, *numBlocks)
-
 	fmt.Println("Общая сумма всех чисел:", totalSum)
 }
 
@@ -59,13 +58,14 @@ func calculateSum(items []Item, numGoroutines int, numBlocks int) int {
 	close(blocks)
 
 	startTime := time.Now()
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go worker(blocks, &wg, results)
-	}
-
-	wg.Wait()
-	close(results)
+	go func() {
+		for i := 0; i < numGoroutines; i++ {
+			wg.Add(1)
+			go worker(blocks, &wg, results)
+		}
+		wg.Wait()
+		close(results)
+	}()
 
 	totalSum := 0
 	for sum := range results {
